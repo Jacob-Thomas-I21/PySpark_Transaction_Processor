@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  transaction-processor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: pyspark-transaction-processor
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ../.env
+    volumes:
+      - ../logs:/app/logs
+      - ../output:/app/output
+      - ../config:/app/config:ro
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - transaction-network
+
+  postgres:
+    image: postgres:13
+    container_name: transaction-postgres
+    environment:
+      - POSTGRES_DB=transaction_db
+      - POSTGRES_USER=transaction_user
+      - POSTGRES_PASSWORD=secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../setup/postgres_setup.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - transaction-network
+
+volumes:
+  postgres_data:
+
+networks:
+  transaction-network:
+    driver: bridge
