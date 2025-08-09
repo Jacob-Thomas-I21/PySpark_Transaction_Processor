@@ -47,7 +47,7 @@ class TestMechanismX(unittest.TestCase):
             ]
         }
         
-        with patch.object(GDriveReader, '_download_csv') as mock_download:
+        with patch.object(GDriveReader, '_download_csv_with_retry') as mock_download:
             mock_download.side_effect = [self.sample_transactions, self.sample_importance]
             
             reader = GDriveReader()
@@ -71,7 +71,7 @@ class TestMechanismX(unittest.TestCase):
             ]
         }
         
-        with patch.object(GDriveReader, '_download_csv') as mock_download:
+        with patch.object(GDriveReader, '_download_csv_with_retry') as mock_download:
             mock_download.side_effect = [self.sample_transactions, self.sample_importance]
             
             reader = GDriveReader()
@@ -80,14 +80,15 @@ class TestMechanismX(unittest.TestCase):
             self.assertEqual(len(chunk), 2)
             self.assertEqual(reader.current_position, 2)
             
-            # Test wraparound
+            # Test getting remaining data
             chunk2 = reader.get_next_chunk(chunk_size=2)
             self.assertEqual(len(chunk2), 1)  # Only 1 record left
             self.assertEqual(reader.current_position, 3)
             
-            # Test reset
+            # Test completion - should return empty DataFrame
             chunk3 = reader.get_next_chunk(chunk_size=2)
-            self.assertEqual(reader.current_position, 2)  # Reset and read 2 more
+            self.assertEqual(len(chunk3), 0)  # Empty DataFrame when complete
+            self.assertTrue(reader.is_complete())
     
     @patch('src.mechanism_x.data_ingestion.GDriveReader')
     @patch('src.mechanism_x.data_ingestion.S3Utils')
@@ -96,19 +97,28 @@ class TestMechanismX(unittest.TestCase):
         # Setup mocks
         mock_reader_instance = Mock()
         mock_gdrive_reader.return_value = mock_reader_instance
-        mock_reader_instance.get_next_chunk.return_value = self.sample_transactions.head(2)
+        
+        # Mock sequence: first call returns data, second call returns empty (completion)
+        mock_reader_instance.get_next_chunk.side_effect = [
+            self.sample_transactions.head(2),  # First chunk
+            pd.DataFrame()  # Empty DataFrame to signal completion
+        ]
+        mock_reader_instance.is_complete.return_value = True
         
         mock_s3_instance = Mock()
         mock_s3_utils.return_value = mock_s3_instance
         
-        service = DataIngestionService()
-        
-        # Test single ingestion cycle
-        service._run_ingestion()
-        
-        # Verify that chunk was retrieved and uploaded
-        mock_reader_instance.get_next_chunk.assert_called()
-        mock_s3_instance.upload_dataframe.assert_called()
+        # Patch the initialization to avoid actual GDrive connection
+        with patch.object(DataIngestionService, '_initialize_gdrive_reader'):
+            service = DataIngestionService()
+            service.gdrive_reader = mock_reader_instance  # Set the mock directly
+            
+            # Test single ingestion cycle
+            service._run_ingestion()
+            
+            # Verify that chunk was retrieved and uploaded
+            mock_reader_instance.get_next_chunk.assert_called()
+            mock_s3_instance.upload_dataframe.assert_called()
 
 class TestGDriveIntegration(unittest.TestCase):
     """Integration tests for Google Drive functionality"""
