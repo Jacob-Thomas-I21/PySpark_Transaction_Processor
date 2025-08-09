@@ -112,6 +112,7 @@ class TestMechanismX(unittest.TestCase):
         with patch.object(DataIngestionService, '_initialize_gdrive_reader'):
             service = DataIngestionService()
             service.gdrive_reader = mock_reader_instance  # Set the mock directly
+            service.running = True  # Set running state to True so the loop executes
             
             # Test single ingestion cycle
             service._run_ingestion()
