@@ -267,7 +267,7 @@ pytest tests/test_mechanism_x.py -v
 For technical issues or questions:
 1. Check the [troubleshooting guide](TROUBLESHOOTING.md)
 2. Review [GitHub Issues](../../issues)
-3. Contact: hiring@devdolphins.com
+3. Contact: jacobtjoshy@gmail.com
 
 ## 📄 License
 
