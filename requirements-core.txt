@@ -20,7 +20,7 @@ google-auth-oauthlib==1.2.0
 # Configuration and utilities
 python-dotenv==1.0.0
 structlog==23.2.0
-pytz==2023.3
+pytz==2025.2
 
 # Delta Lake (install last)
 delta-spark==3.0.0
